@@ -1,0 +1,30 @@
+// schema.prisma
+
+generator client {
+    provider = "prisma-client-js"
+    // previewFeatures = ["fullTextSearch","fullTextIndex"]
+}
+
+datasource db {
+    // provider  = "postgresql"
+    // url       = env("DATABASE_URL_POOLED") // uses connection pooling
+    // directUrl = env("DATABASE_URL_UNPOOLED") // uses a direct connection
+    provider = "sqlite"
+    url      = "file:./dev.db"
+}
+
+model User {
+    id        String   @id @default(cuid())
+    name      String?
+    email     String?  @unique
+    createdAt DateTime @default(now()) @map(name: "created_at")
+    updatedAt DateTime @updatedAt @map(name: "updated_at")
+
+    @@map(name: "users")
+}
+
+model Todo {
+    id        String  @id @default(cuid())
+    task      String  @unique
+    completed Boolean @default(false)
+}
