@@ -1,6 +1,6 @@
-# (Next.js + Tailwind + shadcn/ui + Prisma) Template
+# Next.js 14 + Tailwind + shadcn/ui + Prisma + TRPC
 
-- [(Next.js + Tailwind + shadcn/ui + Prisma) Template](#nextjs--tailwind--shadcnui--prisma-template)
+- [Next.js 14 + Tailwind + shadcn/ui + Prisma + TRPC](#nextjs-14--tailwind--shadcnui--prisma--trpc)
   - [Getting Started](#getting-started)
     - [Prisma Setup](#prisma-setup)
   - [trpc](#trpc)
@@ -12,10 +12,10 @@
     - [Client Setup](#client-setup)
       - [For nextjs client component](#for-nextjs-client-component)
       - [For nextjs server component](#for-nextjs-server-component)
-    - [JWT Authentication \& Middleware (basic)](#jwt-authentication--middleware-basic)
+    - [Context||Middleware|Authentication in TRPC](#contextmiddlewareauthentication-in-trpc)
       - [Setting Cookie](#setting-cookie)
-      - [Configuring trpc provider for sending cookies in header](#configuring-trpc-provider-for-sending-cookies-in-header)
-      - [Creating Context and Passing request object grabbed in next.js route handler](#creating-context-and-passing-request-object-grabbed-in-nextjs-route-handler)
+      - [Configuring trpc provider for sending cookies in header to the server](#configuring-trpc-provider-for-sending-cookies-in-header-to-the-server)
+      - [Creating Context and Passing request object to the procedures/middlewares](#creating-context-and-passing-request-object-to-the-proceduresmiddlewares)
       - [TRPC authentication middleware](#trpc-authentication-middleware)
     - [Using Protected Procedure for protected routes](#using-protected-procedure-for-protected-routes)
     - [Login page](#login-page)
@@ -24,7 +24,7 @@
 
 ## Getting Started
 
-Install dependencies with "pnpm"
+Install dependencies with pnpm
 
 ```bash
 pnpm install
@@ -42,6 +42,7 @@ pnpm dev
 
 ### Prisma Setup
 
+```bash
 pnpm add -D prisma
 pnpm add @prisma/client
 <!-- npx prisma init -->
@@ -50,10 +51,13 @@ npx prisma db push
 npx prisma studio
 <!-- https://www.prisma.io/docs/orm/prisma-migrate/workflows/seeding -->
 npx prisma db seed
+```
 
 ## trpc
 
+```bash
 pnpm add @trpc/client @trpc/server @trpc/react-query @tanstack/react-query@^4.18.0
+```
 
 ### Define Routers
 
@@ -456,13 +460,15 @@ export default TodoList;
 
 ```
 
-### JWT Authentication & Middleware (basic)
+### Context||Middleware|Authentication in TRPC
 
 #### Setting Cookie
 
 `lib\trpc\server\routers\auth.ts`
 
 ```typescript
+import { cookies } from 'next/headers';
+
 export const authRouter = router({
  login: publicProcedure.mutation(async ({ input, ctx }) => {
   cookies().set({
@@ -481,7 +487,7 @@ export const authRouter = router({
 });
 ```
 
-#### Configuring trpc provider for sending cookies in header
+#### Configuring trpc provider for sending cookies in header to the server
 
 `lib\trpc\client\trpc-provider.tsx`
 
@@ -550,9 +556,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 }
 ```
 
-#### Creating Context and Passing request object grabbed in next.js route handler
+#### Creating Context and Passing request object to the procedures/middlewares
 
 Context holds data that all of your tRPC procedures will have access to, and is a great place to put things like database connections or authentication information.
+
+In particular, we will be using the request object to access the cookies that we set in the previous step by the client component.
 
 Setting up the context is done in 2 steps, defining the type during initialization and then creating the runtime context for each request.
 
@@ -804,4 +812,3 @@ Error: Not authorized`
 ```
 
 Hence, protecting server component using nextjs middleware solves this problem.
-
