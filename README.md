@@ -12,7 +12,7 @@
     - [Client Setup](#client-setup)
       - [For nextjs client component](#for-nextjs-client-component)
       - [For nextjs server component](#for-nextjs-server-component)
-    - [Context||Middleware|Authentication in TRPC](#contextmiddlewareauthentication-in-trpc)
+    - [Context|Middleware|Authentication in TRPC](#contextmiddlewareauthentication-in-trpc)
       - [Setting Cookie](#setting-cookie)
       - [Configuring trpc provider for sending cookies in header to the server](#configuring-trpc-provider-for-sending-cookies-in-header-to-the-server)
       - [Creating Context and Passing request object to the procedures/middlewares](#creating-context-and-passing-request-object-to-the-proceduresmiddlewares)
@@ -460,7 +460,9 @@ export default TodoList;
 
 ```
 
-### Context||Middleware|Authentication in TRPC
+### Context|Middleware|Authentication in TRPC
+
+Below is example of authentication using cookie using concept of trpc protected procedure, middleware and context.
 
 #### Setting Cookie
 
