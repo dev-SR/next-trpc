@@ -994,7 +994,7 @@ model User {
 }
 ```
 
-But simply add `role` columns doesn't add `role` property to the session object when client try to access it using `getServerSession` or `useSession` hook.
+But simply adding `role` columns doesn't add `role` property to the session object when client try to access it using `getServerSession` or `useSession` hook.
 
 Current session info is:
 
