@@ -37,22 +37,16 @@ export const router = t.router;
 export const publicProcedure = t.procedure;
 
 const isAuth = t.middleware(({ next, ctx }) => {
-	const cookieString = ctx.req.headers.get('cookie');
-
-	if (!cookieString) {
-		throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Not authorized' });
+	if (!ctx.session || !ctx.session.user) {
+		throw new TRPCError({ code: 'UNAUTHORIZED' });
 	}
-	const cookies = cookieString.split(';');
-	const accessToken = cookies.find((cookie) => cookie.includes('access_token'));
-	console.log(`Trpc Middleware: ${accessToken}`);
-	if (!accessToken) {
-		throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Not authorized' });
-	}
-	if (accessToken.trim() != 'access_token=your_access_token') {
-		throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Not authorized' });
-	}
-
-	return next();
+	return next({
+		ctx: {
+			...ctx,
+			// infers the `session` as non-nullable
+			session: { ...ctx.session, user: ctx.session.user }
+		}
+	});
 });
 
 export const protectedProcedure = t.procedure.use(isAuth);

@@ -21,6 +21,19 @@
     - [Login page](#login-page)
       - [Solving ServerClient](#solving-serverclient)
     - [Protecting pages using nextjs middleware](#protecting-pages-using-nextjs-middleware)
+  - [NextAuth](#nextauth)
+    - [Basic Example](#basic-example)
+      - [Setup next-auth](#setup-next-auth)
+      - [register route](#register-route)
+      - [Login button](#login-button)
+      - [Accessing Session from the client after logging in](#accessing-session-from-the-client-after-logging-in)
+    - [Role based auth](#role-based-auth)
+      - [Update schema](#update-schema)
+      - [Adding `role` to the session object in 'database' session strategy](#adding-role-to-the-session-object-in-database-session-strategy)
+      - [Adding `role` to the session object in 'jwt' session strategy](#adding-role-to-the-session-object-in-jwt-session-strategy)
+    - [Protecting with middleware](#protecting-with-middleware)
+    - [Protecting pages using with layout](#protecting-pages-using-with-layout)
+    - [Protecting TRPC routes](#protecting-trpc-routes)
 
 ## Getting Started
 
@@ -797,12 +810,12 @@ import TodoList from '@/components/TodoList';
 import { serverClient } from '@/lib/trpc/client/serverClient';
 
 export default async function Home() {
-	const todos = await serverClient.todos.getTodos();
+ const todos = await serverClient.todos.getTodos();
   ////calling protected procedure `checkAuth` using `serverClient`
-	const data = await serverClient.auth.checkAuth();
-	if (!data) return null;
+ const data = await serverClient.auth.checkAuth();
+ if (!data) return null;
 
-	return <TodoList initialData={todos} componentType='Protected Server Component' />;
+ return <TodoList initialData={todos} componentType='Protected Server Component' />;
 }
 ```
 
@@ -814,3 +827,371 @@ Error: Not authorized`
 ```
 
 Hence, protecting server component using nextjs middleware solves this problem.
+
+## NextAuth
+
+pnpm add next-auth @auth/prisma-adapter
+
+### Basic Example
+
+
+#### Setup next-auth
+
+`lib\auth\next-auth.ts`
+
+```typescript
+import GitHubProvider from 'next-auth/providers/github';
+import { PrismaAdapter } from '@auth/prisma-adapter';
+import { prisma } from '@/lib/db';
+import { AuthOptions,getServerSession } from 'next-auth';
+
+ const authOptions: AuthOptions = {
+ adapter: PrismaAdapter(prisma) as any,
+ providers: [
+  GitHubProvider({
+   // http://localhost:3000/api/auth/callback/github
+   clientId: process.env.GITHUB_ID!,
+   clientSecret: process.env.GITHUB_SECRET!
+  })
+ ]
+};
+export const getServerAuthSession = () => getServerSession(authOptions);
+```
+
+Required `env`:
+
+```bash
+# next-auth
+# openssl rand -base64 69
+NEXTAUTH_SECRET="xxxxxxxxxxxx"
+NEXTAUTH_URL="http://localhost:3000"
+# next-auth Github Provider
+GITHUB_ID=""
+GITHUB_SECRET=""
+```
+
+#### register route
+
+`app\api\auth\[...nextauth]\route.ts`
+
+```typescript
+import { authOptions } from '@/lib/auth/next-auth';
+import NextAuth from 'next-auth';
+
+const handler = NextAuth(authOptions);
+export { handler as GET, handler as POST };
+```
+
+#### Login button
+
+```typescript
+'use client';
+import { signIn } from 'next-auth/react';
+import { Button } from '@/components/ui/button';
+
+const LogInButton = () => {
+ return <Button onClick={() => signIn()}>Login</Button>;
+};
+export default LogInButton;
+
+```
+
+or
+
+Using `<Link>` component:
+
+```tsx
+import Link from 'next/link';
+const LogInLink = () => {
+ return <Link
+    href='/api/auth/signin'
+    className='underline text-lg cursor-pointer text-white'>
+    Login
+   </Link>;
+};
+export default LogInLink;
+```
+
+We are now set to log in using GitHub.
+
+#### Accessing Session from the client after logging in
+
+- In server component or api:
+
+```tsx
+import { getServerAuthSession } from '@/lib/auth/next-auth';
+
+export default async function Home() {
+ const session = await getServerAuthSession();
+ // console.log(session);
+
+ return (
+ <div className='min-h-screen flex flex-col items-center pt-8'>
+   <p className='text-center text-2xl'>
+    {session && (
+     <span>
+      Logged in as {session.user?.name}
+     </span>
+    )}
+    {!session && <span>Not logged in</span>}
+   </p>
+  </div>
+ );
+}
+
+```
+
+Here is what session object look like:
+
+```typescript
+{
+  user: {
+    name: 'Sharukh Rahman Soikat',
+    email: 'hello.dev.sr@gmail.com',
+    image: 'https://avatars.githubusercontent.com/u/67555419?v=4',
+    role: 'admin'
+  }
+}
+```
+
+Since we are using prisma adapter, session is also saved in the database in `Session` table.
+Also when using database adapter, the session strategy  is set to `database` by default. So no need to set it explicitly.
+
+```typescript
+session: {
+  // Choose how you want to save the user session.
+  // The default is `"jwt"`, an encrypted JWT (JWE) stored in the session cookie.
+  // !If you use an `adapter` however, we default it to `"database"` instead.
+  // !You can still force a JWT session by explicitly defining `"jwt"`.
+  // When using `"database"`, the session cookie will only contain a `sessionToken` value,
+  // which is used to look up the session in the database.
+  strategy: 'database'
+ },
+```
+
+### Role based auth
+
+#### Update schema
+
+`prisma\schema.prisma`
+
+```prisma
+// enum UserRole{
+//     ADMIN
+//     USER
+// }
+
+model User {
+    id            String    @id @default(cuid())
+    name          String?
+    email         String?   @unique
+    emailVerified DateTime?
+
+    role String @default("user")
+    // role UserRole @default(USER)
+
+    image    String?
+    accounts Account[]
+    sessions Session[]
+}
+```
+
+But simply add `role` columns doesn't add `role` property to the session object when client try to access it using `getServerSession` or `useSession` hook.
+
+Current session info is:
+
+```typescript
+{
+  user: {
+    name: '',
+    email: '',
+    image: ''
+  }
+}
+```
+
+#### Adding `role` to the session object in 'database' session strategy
+
+To add `role` property to the session object we need to implement  `session` callback function in `authOptions`:
+
+```typescript
+export const authOptions: AuthOptions = {
+ //...
+ callbacks: {
+  // https://next-auth.js.org/configuration/callbacks#session-callback
+  // 1. The session callback is called whenever a session is checked via `getServerSession` or `useSession` hook.
+  // 2. Here, We have to explicitly add the `role` to the session object so that we can access it in the client components.
+  // 3. When using `database` session `user` object is passed as argument. When using `jwt` session `token` is passed as argument.
+
+  async session({ session, user, token }) {
+   // console.log({ session, user, token }); //token is `null` for `database` session
+   session.user.role = user.role; // we can access the user object from the database here
+   return session;
+  }
+ }
+};
+```
+
+`session` is called every time `getServerSession` or `useSession` hook is called. So we can access the passed `user` and add `role` property to the session object.
+
+#### Adding `role` to the session object in 'jwt' session strategy
+
+We still need to add `role` property to the session object but this time we need to access the `token` object instead of `user` object. Additionally, we need to add `role` property to token object in `jwt` callback function, which will be passed to the `session` callback function.
+
+
+```typescript
+export const authOptions: AuthOptions = {
+ providers: [
+  GitHubProvider({
+   // http://localhost:3000/api/auth/callback/github
+   clientId: process.env.GITHUB_ID!,
+   clientSecret: process.env.GITHUB_SECRET!
+  })
+ ],
+ adapter: PrismaAdapter(prisma) as any,
+ session: {
+  strategy: 'jwt'
+ },
+ callbacks: {
+    /*
+  https://next-auth.js.org/configuration/callbacks#jwt-callback
+  This callback is called whenever a JSON Web Token is created (i.e. at sign in) or updated (i.e whenever a session is accessed in the client).
+  This method is not invoked when you persist sessions in a database.
+  The arguments user, account, profile and isNewUser are only passed the first time this callback is called on a new session, after the user signs in. In subsequent calls, only token will be available.
+  */
+  async jwt({ user, token }) {
+   // console.log({ user, token });
+   if (user) token.role = user.role;
+   return token;
+  },
+  // https://next-auth.js.org/configuration/callbacks#session-callback
+  // 1. The session callback is called whenever a session is checked via `getServerSession` or `useSession` hook.
+  // 2. Here, We have to explicitly add the `role` to the session object so that we can access it in the client components.
+  // 3. When using `database` session `user` object is passed as argument. When using `jwt` session `token` is passed as argument.
+
+  async session({ session, user, token }) {
+   // console.log({ session, user, token }); // `user` is `null` for `jwt` session
+   session.user.role = token.role;
+   return session;
+  }
+ }
+};
+```
+
+### Protecting with middleware
+
+> Cation: This technique is not working as expected as it only works with `jwt` session strategy.
+
+### Protecting pages using with layout
+
+`app\protected\layout.tsx`
+
+```tsx
+import { getServerAuthSession } from '@/lib/auth/next-auth';
+import { signIn } from 'next-auth/react';
+import { redirect } from 'next/navigation';
+
+// checks authorized users
+export default async function Layout({
+ children // will be a page or nested layout
+}: {
+ children: React.ReactNode;
+}) {
+ const session = await getServerAuthSession();
+
+ if (!session) {
+  return redirect('/api/auth/signin');
+ }
+
+ return <>{children}</>;
+}
+```
+
+This Protects `/protected/*` routes.
+
+Role based protection
+
+`app\protected\admin\layout.tsx`
+
+```tsx
+import { getServerAuthSession } from '@/lib/auth/next-auth';
+import { redirect } from 'next/navigation';
+
+// checks authorized users
+export default async function Layout({
+ children // will be a page or nested layout
+}: {
+ children: React.ReactNode;
+}) {
+ const session = await getServerAuthSession();
+ if (!session) {
+  return redirect('/api/auth/signin');
+ }
+
+ return session.user.role === 'admin' ? (
+  <>{children}</>
+ ) : (
+  <div className='flex items-center justify-center w-full h-full mt-16'>
+   <h1 className='text-4xl'>Only admin can view this page.</h1>
+  </div>
+ );
+}
+```
+
+This Protects `/protected/admin/*` routes for `admin` role.
+
+### Protecting TRPC routes
+
+1. Get the server session and create context so that we can access the session object in the procedures/middlewares.
+
+`lib\trpc\server\createContext.ts`
+
+```typescript
+import { getServerAuthSession } from '@/lib/auth/next-auth';
+import { inferAsyncReturnType } from '@trpc/server';
+import { NextRequest } from 'next/server';
+
+export const createContext = async (req: NextRequest) => {
+ const session = await getServerAuthSession();
+ return {
+  req,
+  session
+ };
+};
+
+export type Context = inferAsyncReturnType<typeof createContext>;
+```
+
+2. Check if the session object is present in the context in the middleware and create a protected procedure.
+
+`lib\trpc\server\trpc.ts`
+
+```typescript
+const isAuth = t.middleware(({ next, ctx }) => {
+ if (!ctx.session || !ctx.session.user) {
+  throw new TRPCError({ code: 'UNAUTHORIZED' });
+ }
+ return next({
+  ctx: {
+   // infers the `session` as non-nullable
+   session: { ...ctx.session, user: ctx.session.user }
+  }
+ });
+});
+
+export const protectedProcedure = t.procedure.use(isAuth);
+```
+
+3. Good to go.
+
+`lib\trpc\server\routers\auth.ts`
+
+```typescript
+import { protectedProcedure, router } from '../trpc';
+
+export const authRouter = router({
+	checkAuth: protectedProcedure.query(({ ctx }) => {
+		return ctx.session.user;
+	})
+});
+```

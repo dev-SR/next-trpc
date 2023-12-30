@@ -33,6 +33,9 @@ const TodoList = ({
 			task: ''
 		}
 	});
+	const auth = trpc.auth.checkAuth.useQuery(undefined, {
+		retry: false
+	});
 
 	const getTodos = trpc.todos.getTodos.useQuery(undefined, { initialData: initialData });
 	const toggleTodo = trpc.todos.toggleTodo.useMutation({
@@ -62,6 +65,16 @@ const TodoList = ({
 			<div>
 				<h1 className='text-2xl font-bold'>{componentType}</h1>
 			</div>
+			<p>Testing calling protected trpc api route:</p>
+			<code>
+				{' '}
+				Result:
+				{auth.isSuccess ? (
+					<span className='text-green-600'> {JSON.stringify(auth.data)}</span>
+				) : (
+					<span className='text-red-600'> {auth.error?.message}</span>
+				)}
+			</code>
 			<Form {...form}>
 				<form onSubmit={form.handleSubmit(onSubmit)} className='space-y-2'>
 					<FormField

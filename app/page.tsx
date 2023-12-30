@@ -1,18 +1,18 @@
-import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '@/components/ui/card';
-import { prisma } from '@/lib/db';
+import { getServerAuthSession } from '@/lib/auth/next-auth';
 
 export default async function Home() {
-	const users = await prisma.user.findMany();
+	const session = await getServerAuthSession();
 
 	return (
 		<div className='min-h-screen flex flex-col items-center pt-8'>
-			<ul className='flex flex-col space-y-4'>
-				{users.map((user) => (
-					<div key={user.id}>
-						{user.name}-{user.email}
-					</div>
-				))}
-			</ul>
+			<p className='text-center text-2xl'>
+				{session && (
+					<span>
+						Logged in as {session.user?.name} - {session.user?.role}
+					</span>
+				)}
+				{!session && <span>Not logged in</span>}
+			</p>
 		</div>
 	);
 }

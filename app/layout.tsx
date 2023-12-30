@@ -5,6 +5,7 @@ import Navbar from '@/components/Navbar';
 import { TrpcProvider } from '@/lib/trpc/client/trpc-provider';
 import { Toaster } from '@/components/ui/sonner';
 import { cookies } from 'next/headers';
+import NextAuthProvider from '@/lib/auth/Provider';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -18,11 +19,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 	return (
 		<html lang='en'>
 			<body className={inter.className}>
-				<TrpcProvider cookies={serverCookies}>
-					<Toaster richColors closeButton position='top-center' />
-					<Navbar />
-					{children}
-				</TrpcProvider>
+				<NextAuthProvider>
+					<TrpcProvider cookies={serverCookies}>
+						<Toaster richColors closeButton position='top-center' />
+						<Navbar />
+						{children}
+					</TrpcProvider>
+				</NextAuthProvider>
 			</body>
 		</html>
 	);
