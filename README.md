@@ -1179,16 +1179,43 @@ const isAuth = t.middleware(({ next, ctx }) => {
 export const protectedProcedure = t.procedure.use(isAuth);
 ```
 
+- For role-based protection:
+
+```typescript
+const isAdminAuth = t.middleware(({ next, ctx }) => {
+ if (!ctx.session || !ctx.session.user) {
+  throw new TRPCError({ code: 'UNAUTHORIZED' });
+ }
+ if (ctx.session.user.role != 'admin') {
+  throw new TRPCError({ code: 'UNAUTHORIZED' });
+ }
+ return next({
+  ctx: {
+   ...ctx,
+   // infers the `session` as non-nullable
+   session: { ...ctx.session, user: ctx.session.user }
+  }
+ });
+});
+
+export const protectedAdminProcedure = t.procedure.use(isAdminAuth);
+```
+
+
 3. Good to go.
 
 `lib\trpc\server\routers\auth.ts`
 
 ```typescript
-import { protectedProcedure, router } from '../trpc';
+import { protectedAdminProcedure, protectedProcedure, router } from '../trpc';
 
 export const authRouter = router({
  checkAuth: protectedProcedure.query(({ ctx }) => {
   return ctx.session.user;
+ }),
+ checkAdminAuth: protectedAdminProcedure.query(({ ctx }) => {
+  return ctx.session.user;
  })
 });
+
 ```

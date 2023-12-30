@@ -1,15 +1,14 @@
 'use client';
 
-import { trpc } from '@/lib/trpc/client/client';
+import CheckAdminProtectedRoute from '@/components/auth/CheckAdminProtectedRoute';
+import CheckProtectedRoute from '@/components/auth/CheckProtectedRoute';
 
 const ClientComponent = () => {
-	const auth = trpc.auth.checkAuth.useQuery(undefined, {
-		retry: false
-	});
 	return (
 		<div className='flex flex-col items-center justify-center w-full h-full mt-16'>
 			<h1>Welcome to Protected Client Component</h1>
-			<code className='text-green-600'>{JSON.stringify(auth.data, null, 4)}</code>
+			<CheckProtectedRoute />
+			<CheckAdminProtectedRoute />
 		</div>
 	);
 };

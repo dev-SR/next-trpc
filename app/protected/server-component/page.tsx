@@ -1,12 +1,12 @@
-import { serverClient } from '@/lib/trpc/client/serverClient';
+import CheckAdminProtectedRoute from '@/components/auth/CheckAdminProtectedRoute';
+import CheckProtectedRoute from '@/components/auth/CheckProtectedRoute';
 
-const ServerComponent = async () => {
-	const res = await serverClient.auth.checkAuth();
-
+const ServerComponent = () => {
 	return (
 		<div className='flex flex-col items-center justify-center w-full h-full mt-16'>
 			<h1>Welcome to Protected Server Component</h1>
-			<code className='text-green-600'>{JSON.stringify(res, null, 4)}</code>
+			<CheckProtectedRoute />
+			<CheckAdminProtectedRoute />
 		</div>
 	);
 };

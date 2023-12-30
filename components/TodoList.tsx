@@ -67,7 +67,6 @@ const TodoList = ({
 			</div>
 			<p>Testing calling protected trpc api route:</p>
 			<code>
-				{' '}
 				Result:
 				{auth.isSuccess ? (
 					<span className='text-green-600'> {JSON.stringify(auth.data)}</span>
