@@ -1,6 +1,6 @@
-# Next.js 14 + Tailwind + shadcn/ui + Prisma + TRPC
+# Next.js 14 + Tailwind + shadcn/ui + Prisma + TRPC + NextAuth
 
-- [Next.js 14 + Tailwind + shadcn/ui + Prisma + TRPC](#nextjs-14--tailwind--shadcnui--prisma--trpc)
+- [Next.js 14 + Tailwind + shadcn/ui + Prisma + TRPC + NextAuth](#nextjs-14--tailwind--shadcnui--prisma--trpc--nextauth)
   - [Getting Started](#getting-started)
     - [Prisma Setup](#prisma-setup)
   - [trpc](#trpc)
@@ -804,7 +804,6 @@ Protecting with nextjs middleware solve below problem:
 
 `app\protected\server-component\page.tsx`
 
-
 ```typescript
 import TodoList from '@/components/TodoList';
 import { serverClient } from '@/lib/trpc/client/serverClient';
@@ -833,7 +832,6 @@ Hence, protecting server component using nextjs middleware solves this problem.
 pnpm add next-auth @auth/prisma-adapter
 
 ### Basic Example
-
 
 #### Setup next-auth
 
@@ -1038,7 +1036,6 @@ export const authOptions: AuthOptions = {
 
 We still need to add `role` property to the session object but this time we need to access the `token` object instead of `user` object. Additionally, we need to add `role` property to token object in `jwt` callback function, which will be passed to the `session` callback function.
 
-
 ```typescript
 export const authOptions: AuthOptions = {
  providers: [
@@ -1190,8 +1187,8 @@ export const protectedProcedure = t.procedure.use(isAuth);
 import { protectedProcedure, router } from '../trpc';
 
 export const authRouter = router({
-	checkAuth: protectedProcedure.query(({ ctx }) => {
-		return ctx.session.user;
-	})
+ checkAuth: protectedProcedure.query(({ ctx }) => {
+  return ctx.session.user;
+ })
 });
 ```
